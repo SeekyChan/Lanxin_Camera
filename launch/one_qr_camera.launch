@@ -1,0 +1,14 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="node_name" default="qr_code_identify"/>
+
+  <rosparam command="load"
+            file="$(find qr_code_identify_lanxin)/config/config_cameras.yaml"
+            ns="$(arg node_name)" />
+
+  <node name="$(arg node_name)"
+        pkg="qr_code_identify_lanxin"
+        type="qr_code_identify_node"
+        output="screen"
+        respawn="false" />
+</launch>

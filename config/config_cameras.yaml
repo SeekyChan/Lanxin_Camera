@@ -1,0 +1,45 @@
+# camera params
+down_qr_camera_ip: 192.168.100.6
+down_qr_camera_param_exposure: 300
+down_qr_camera_param_gain: 250
+down_qr_camera_param_led_brightness: 100
+
+up_qr_camera_ip: 192.168.10.106
+up_qr_camera_param_exposure: 300
+up_qr_camera_param_gain: 250
+up_qr_camera_param_led_brightness: 100
+
+# QR detection params
+down_qr_code_param_rows: 4
+down_qr_code_param_cols: 4
+down_qr_code_param_qr_size: 0.015
+down_qr_code_param_qr_interval: 0.005
+down_qr_code_param_radius_big: 0.016
+down_qr_code_param_radius_small: 0.003
+down_qr_code_param_circle_dis: 0.0425
+down_qr_code_param_point_height: 0.1
+down_qr_code_param_big_circle_width: 0.003
+down_qr_code_param_qr_need: 3
+down_qr_code_param_dm_symbol: 1
+down_qr_code_param_decode_timeout: 25.0
+down_qr_code_param_big_circle_flag: false
+down_qr_code_param_small_circle_flag: false
+down_qr_code_param_encode_type: 5
+down_qr_code_param_save_video: false
+
+up_qr_code_param_rows: 4
+up_qr_code_param_cols: 4
+up_qr_code_param_qr_size: 0.018
+up_qr_code_param_qr_interval: 0.005
+up_qr_code_param_radius_big: 0.016
+up_qr_code_param_radius_small: 0.003
+up_qr_code_param_circle_dis: 0.0425
+up_qr_code_param_point_height: 0.1
+up_qr_code_param_big_circle_width: 0.003
+up_qr_code_param_qr_need: 3
+up_qr_code_param_dm_symbol: 3
+up_qr_code_param_decode_timeout: 25.0
+up_qr_code_param_big_circle_flag: false
+up_qr_code_param_small_circle_flag: false
+up_qr_code_param_encode_type: 5
+up_qr_code_param_save_video: false
