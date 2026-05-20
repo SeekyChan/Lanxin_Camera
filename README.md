@@ -1,46 +1,63 @@
-# qr_code_identify
+# qr_code_identify_lanxin
 
-Clean ROS wrapper for the Lanxin / VMR QR camera SDK.
+蓝芯 / VMR 二维码相机 SDK 的 ROS 封装包。它负责启动 SDK 相机、接收二维码识别结果，并将二维码 ID 与位姿偏差发布到 ROS。
 
-Full development and maintenance notes are in:
+## 运行接口
 
-```text
-docs/DEVELOPMENT.md
+- 发布 topic：`qr_data`
+- topic 类型：`common_msgs/qr_data`
+- 参数服务：`update_qr_code_identify_lanxin_params`
+- 服务类型：`common_msgs/SetLxCameraParams`
+- 启动文件：`launch/one_qr_camera.launch`
+- 默认节点名：`qr_code_identify`
+- 可执行文件：`qr_code_identify_node`
+
+启动示例：
+
+```bash
+roslaunch qr_code_identify_lanxin one_qr_camera.launch
 ```
 
-## Runtime Interfaces
+## 参数服务语义
 
-- Publishes `common_msgs/qr_data` on `qr_data`.
-- Provides `common_msgs/SetLxCameraParams` on
-  `update_qr_code_identify_lanxin_params`.
-
-`flag_update=false` returns the current active camera parameters.
-`flag_update=true` validates and writes new camera parameters, then restarts the SDK
-camera session.
-
-`config/config_cameras.yaml` intentionally keeps the legacy camera parameter
-schema only. Wrapper behavior such as publish rate, stale timeout and reconnect
-interval uses code defaults, so older tools that rewrite the YAML with only
-`common_msgs/config_lx_camera` fields remain compatible.
-
-## Data Flow
+`flag_update=false`：
 
 ```text
-Lanxin camera
-  -> VMR_QCSDK continuous capture
-  -> SDK image callback: frame counter only
-  -> SDK detection callback: code / x / y / theta
-  -> QrResultBuffer: one thread-safe latest-result snapshot
-  -> ROS timer: common_msgs/qr_data at publish_rate_hz
+只返回当前节点内存中的相机参数，不重启相机。
 ```
 
-The SDK callback thread never publishes ROS messages and never touches ROS
-parameters. The ROS thread owns parameter service handling and timer publishing.
+`flag_update=true`：
 
-## Main Modules
+```text
+校验 new_lx_param
+写回 config/config_cameras.yaml
+写入 ROS 参数服务器
+更新节点内存配置
+重启 SDK 相机
+```
 
-- `LanxinSdkClient`: owns SDK handle lifecycle.
-- `QrResultBuffer`: stores the latest detection as one coherent snapshot.
-- `QrCodeIdentifyNode`: owns ROS publisher, service and timers.
-- `qr_code_parser`: converts raw SDK code text to `uint32` QR IDs.
-- `qr_camera_config`: reads, writes and validates ROS parameters.
+## 配置文件说明
+
+`config/config_cameras.yaml` 只保留相机参数字段，也就是 `common_msgs/config_lx_camera` 对应字段。
+
+## 数据流
+
+```text
+蓝芯相机
+  -> VMR_QCSDK 连续采集
+  -> SDK 图像回调：只统计帧数
+  -> SDK 识别回调：输出 code / x / y / theta
+  -> QrResultBuffer：保存一整帧线程安全的最新识别结果
+  -> ROS 定时器：按发布频率输出 common_msgs/qr_data
+```
+
+SDK 回调线程不直接发布 ROS 消息，也不读写 ROS 参数。ROS 线程负责 topic 发布、参数服务和重连调度。
+
+## 主要模块
+
+- `LanxinSdkClient`：管理 SDK handle 生命周期，负责 start / stop / restart。
+- `QrResultBuffer`：保存最新一帧识别结果，隔离 SDK 回调线程和 ROS 发布线程。
+- `QrCodeIdentifyNode`：管理 ROS publisher、service 和 timer。
+- `qr_code_parser`：解析 SDK 原始 code 字符串，转换二维码 ID 和角度。
+- `qr_camera_config`：读取、校验、写入 ROS 参数，并安全写回 `config_cameras.yaml`。
+
