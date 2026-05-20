@@ -51,8 +51,6 @@ roslaunch qr_code_identify_lanxin one_qr_camera.launch
   -> ROS 定时器：按发布频率输出 common_msgs/qr_data
 ```
 
-SDK 回调线程不直接发布 ROS 消息，也不读写 ROS 参数。ROS 线程负责 topic 发布、参数服务和重连调度。
-
 ## 主要模块
 
 - `LanxinSdkClient`：管理 SDK handle 生命周期，负责 start / stop / restart。
