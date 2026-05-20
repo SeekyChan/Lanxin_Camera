@@ -137,7 +137,7 @@ qr_code_identify_lanxin/
     config_cameras.yaml
   launch/
     one_qr_camera.launch
-  include/qr_code_identify_lanxin/
+  include/
     lanxin_sdk_client.h
     qr_camera_config.h
     qr_code_identify_node.h
@@ -150,15 +150,13 @@ qr_code_identify_lanxin/
     qr_code_identify_node.cpp
     qr_code_parser.cpp
     qr_result_buffer.cpp
-  VMR_QC_SDK_demo/
-    demo/
-      include/
-        VmrQrCameraApi.h
-        VmrQrCameraDefine.h
-      lib/
-        arm64/
-        x86/
-      examples/
+  sdk/
+    include/
+      VmrQrCameraApi.h
+      VmrQrCameraDefine.h
+    lib/
+      arm64/
+      x86/
 ```
 
 ### 模块职责总览
@@ -573,8 +571,8 @@ ros::package::getPath("qr_code_identify_lanxin")
 SDK 库来自：
 
 ```text
-VMR_QC_SDK_demo/demo/lib/arm64/libVMR_QCSDK.so
-VMR_QC_SDK_demo/demo/lib/x86/libVMR_QCSDK.so
+sdk/lib/arm64/libVMR_QCSDK.so
+sdk/lib/x86/libVMR_QCSDK.so
 ```
 
 CMake 根据 `CMAKE_SYSTEM_PROCESSOR` 选择：
@@ -748,23 +746,23 @@ main()
   src/main.cpp
 
 ROS node 类
-  include/qr_code_identify_lanxin/qr_code_identify_node.h
+  include/qr_code_identify_node.h
   src/qr_code_identify_node.cpp
 
 SDK client
-  include/qr_code_identify_lanxin/lanxin_sdk_client.h
+  include/lanxin_sdk_client.h
   src/lanxin_sdk_client.cpp
 
 最新结果缓存
-  include/qr_code_identify_lanxin/qr_result_buffer.h
+  include/qr_result_buffer.h
   src/qr_result_buffer.cpp
 
 参数与 yaml 写回
-  include/qr_code_identify_lanxin/qr_camera_config.h
+  include/qr_camera_config.h
   src/qr_camera_config.cpp
 
 二维码字符串和角度转换
-  include/qr_code_identify_lanxin/qr_code_parser.h
+  include/qr_code_parser.h
   src/qr_code_parser.cpp
 ```
 

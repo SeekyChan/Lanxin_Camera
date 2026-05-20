@@ -15,7 +15,7 @@ catkin_package(
   CATKIN_DEPENDS roscpp roslib std_msgs common_msgs
 )
 
-set(SDK_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/VMR_QC_SDK_demo/demo)
+set(SDK_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/sdk)
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|ARM64|arm64")
   set(SDK_ARCH_DIR arm64)
@@ -59,7 +59,7 @@ target_link_libraries(qr_code_identify_node
 
 set_target_properties(qr_code_identify_node PROPERTIES
   BUILD_RPATH "${SDK_LIB_DIR}"
-  INSTALL_RPATH "\$ORIGIN/../share/${PROJECT_NAME}/VMR_QC_SDK_demo/demo/lib/${SDK_ARCH_DIR}"
+  INSTALL_RPATH "\$ORIGIN/../share/${PROJECT_NAME}/sdk/lib/${SDK_ARCH_DIR}"
 )
 
 install(TARGETS qr_code_identify_node
@@ -68,8 +68,8 @@ install(TARGETS qr_code_identify_node
   RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
-install(DIRECTORY include/${PROJECT_NAME}/
-  DESTINATION ${CATKIN_PACKAGE_INCLUDE_DESTINATION}
+install(DIRECTORY include/
+  DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h"
 )
 
@@ -77,6 +77,6 @@ install(DIRECTORY config launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
-install(DIRECTORY VMR_QC_SDK_demo
+install(DIRECTORY sdk
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

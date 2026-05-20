@@ -1,6 +1,6 @@
 #include <ros/ros.h>
 
-#include "qr_code_identify_lanxin/qr_code_identify_node.h"
+#include "qr_code_identify_node.h"
 
 int main(int argc, char** argv)
 {

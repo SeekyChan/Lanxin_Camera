@@ -26,6 +26,7 @@ struct QrDetection {
   QrDetection();
 };
 
+// SDK 回调线程写入、ROS 发布线程读取；缓存的是一整帧结果，避免字段级 atomic 拼出半帧数据。
 class QrResultBuffer {
  public:
   QrResultBuffer();

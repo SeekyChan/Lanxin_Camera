@@ -1,4 +1,4 @@
-#include "qr_code_identify_lanxin/lanxin_sdk_client.h"
+#include "lanxin_sdk_client.h"
 
 #include <string.h>
 
@@ -6,7 +6,7 @@
 
 #include <ros/ros.h>
 
-#include "qr_code_identify_lanxin/qr_code_parser.h"
+#include "qr_code_parser.h"
 
 namespace qr_code_identify {
 namespace {
@@ -135,6 +135,7 @@ void LanxinSdkClient::OnDetection(VmrQrCameraDetectionData* result,
   if (!context || !context->accepting_callbacks.load()) {
     return;
   }
+  // 记录进入回调时的 session。若 stop/restart 已发生，本次结果不再写入缓存。
   const uint64_t session_id = context->session_id.load();
 
   if (!result) {
@@ -187,6 +188,7 @@ bool LanxinSdkClient::StartLocked(const QrCameraConfig& config, std::string* err
   callback_context_.session_id.fetch_add(1);
   callback_context_.encode_type.store(config.lx.down_qr_code_param_encode_type);
 
+  // SDK 生命周期必须严格按 create -> open -> set params -> callbacks -> start 的顺序执行。
   VmrQrCameraVersion version;
   if (VMR_QC_GetVersion(&version) == VmrQrCameraNormal) {
     ROS_INFO("Lanxin SDK version: driver=%s algo=%s", version.driver_version,
@@ -283,6 +285,7 @@ void LanxinSdkClient::StopLocked() {
 
   handle_ = NULL;
   running_ = false;
+  // 停止后立即清空旧结果，避免发布线程继续发上一轮相机 session 的有效二维码。
   if (callback_context_.result_buffer) {
     callback_context_.result_buffer->Clear();
   }

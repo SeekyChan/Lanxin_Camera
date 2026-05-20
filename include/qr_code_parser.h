@@ -5,15 +5,18 @@
 
 #include <string>
 
-namespace qr_code_identify {
+namespace qr_code_identify
+{
 
 struct ParsedQrCode {
-  bool valid;
-  uint32_t value;
-  std::string extracted_text;
-  std::string error;
+    bool valid;
+    uint32_t value;
+    std::string extracted_text;
+    std::string error;
 
-  ParsedQrCode() : valid(false), value(0) {}
+    ParsedQrCode() : valid(false), value(0)
+    {
+    }
 };
 
 ParsedQrCode ParseQrCode(const std::string& raw_code, int encode_type);

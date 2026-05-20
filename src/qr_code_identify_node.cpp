@@ -1,4 +1,4 @@
-#include "qr_code_identify_lanxin/qr_code_identify_node.h"
+#include "qr_code_identify_node.h"
 
 #include <sstream>
 
@@ -113,14 +113,16 @@ bool QrCodeIdentifyNode::UpdateParamsCallback(common_msgs::SetLxCameraParams::Re
 {
     std::string error;
 
-    if (!request.flag_update) {
-        response.success = true;
-        response.message = "read current qr_code_identify params success";
+  if (!request.flag_update) {
+    response.success = true;
+    response.message = "read current qr_code_identify params success";
         FillCurrentParams(&response);
-        return true;
-    }
+    return true;
+  }
 
-    if (!ValidateLxCameraParams(request.new_lx_param, &error)) {
+  // 更新顺序不能随意调整：先持久化，再写参数服务器，最后重启相机。
+  // 这样 yaml 写失败时不会污染当前运行参数。
+  if (!ValidateLxCameraParams(request.new_lx_param, &error)) {
         response.success = false;
         response.message = error;
         FillCurrentParams(&response);
