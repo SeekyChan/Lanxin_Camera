@@ -264,7 +264,7 @@ RuntimeOptions DefaultRuntimeOptions()
     options.placeholder_camera_id = 2;      // 为兼容旧消息格式保留的上视相机占位 id_qr
     options.publish_placeholder_up = true;  // 是否额外发布一个无效的上视占位二维码数据
     options.publish_rate_hz = 100.0;        // qr_data topic 的发布频率
-    options.stale_timeout_sec = 0.1;        // 超过该时间没有新识别结果时，对外发布 valid=0
+    options.stale_timeout_sec = 0.06;        // 超过该时间没有新识别结果时，对外发布 valid=0
     options.auto_reconnect = true;          // 相机启动失败或未运行时，是否由定时器自动重连
     options.reconnect_interval_sec = 3.0;   // 自动重连尝试间隔
     options.update_service_name = "update_qr_code_identify_lanxin_params";
