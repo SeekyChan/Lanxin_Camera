@@ -27,6 +27,14 @@ endif()
 
 set(SDK_LIB_DIR ${SDK_ROOT}/lib/${SDK_ARCH_DIR})
 set(SDK_LIBRARY ${SDK_LIB_DIR}/libVMR_QCSDK.so)
+set(SDK_INSTALL_LIB_DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION})
+set(SDK_RUNTIME_LIBS
+  libVMR_QCSDK.so
+  libqrcam_ctrl.so
+  libaravis-0.8.so
+  libaravis-0.8.so.0
+  libaravis-0.8.so.0.8.30
+)
 
 if(NOT EXISTS ${SDK_LIBRARY})
   message(FATAL_ERROR "VMR_QCSDK library not found: ${SDK_LIBRARY}")
@@ -59,7 +67,7 @@ target_link_libraries(qr_code_identify_node
 
 set_target_properties(qr_code_identify_node PROPERTIES
   BUILD_RPATH "${SDK_LIB_DIR}"
-  INSTALL_RPATH "\$ORIGIN/../share/${PROJECT_NAME}/sdk/lib/${SDK_ARCH_DIR}"
+  INSTALL_RPATH "\$ORIGIN/.."
 )
 
 install(TARGETS qr_code_identify_node
@@ -77,6 +85,18 @@ install(DIRECTORY config launch
   DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )
 
-install(DIRECTORY sdk
-  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
+install(DIRECTORY ${SDK_ROOT}/include/
+  DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}/sdk/include
+  FILES_MATCHING PATTERN "*.h"
 )
+
+# 只安装当前架构实际需要的 SDK 运行库，并放到 ROS lib 目录，便于 dh_shlibdeps 和运行时动态链接器查找。
+foreach(SDK_RUNTIME_LIB ${SDK_RUNTIME_LIBS})
+  if(EXISTS ${SDK_LIB_DIR}/${SDK_RUNTIME_LIB})
+    install(FILES ${SDK_LIB_DIR}/${SDK_RUNTIME_LIB}
+      DESTINATION ${SDK_INSTALL_LIB_DESTINATION}
+    )
+  else()
+    message(FATAL_ERROR "SDK runtime library not found: ${SDK_LIB_DIR}/${SDK_RUNTIME_LIB}")
+  endif()
+endforeach()
