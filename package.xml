@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <package format="2">
   <name>qr_code_identify_lanxin</name>
-  <version>0.1.0</version>
+  <version>2.0.0</version>
   <description>Clean ROS wrapper for the Lanxin VMR QR camera SDK.</description>
 
   <maintainer email="todo@todo.todo">todo</maintainer>

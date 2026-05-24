@@ -4,6 +4,7 @@
 #include <fstream>
 #include <iomanip>
 #include <sstream>
+#include <type_traits>
 
 #include <ros/package.h>
 
@@ -81,10 +82,74 @@ bool ValidateOneCameraParams(const common_msgs::config_lx_camera& params, const 
            CheckEncodeType(prefix + "_qr_code_param_encode_type", encode_type, error);
 }
 
+void ReadParam(ros::NodeHandle& nh, const std::string& name, std::string* value)
+{
+    std::string temp = *value;
+    if (nh.getParam(name, temp)) {
+        *value = temp;
+    }
+}
+
+void ReadParam(ros::NodeHandle& nh, const std::string& name, bool* value)
+{
+    bool temp = *value;
+    if (nh.getParam(name, temp)) {
+        *value = temp;
+    }
+}
+
+void ReadParam(ros::NodeHandle& nh, const std::string& name, double* value)
+{
+    double temp = *value;
+    if (nh.getParam(name, temp)) {
+        *value = temp;
+    }
+}
+
+void ReadParam(ros::NodeHandle& nh, const std::string& name, float* value)
+{
+    double temp = *value;
+    if (nh.getParam(name, temp)) {
+        *value = static_cast<float>(temp);
+    }
+}
+
 template <typename T>
-void SetParam(ros::NodeHandle& nh, const std::string& name, const T& value)
+typename std::enable_if<std::is_integral<T>::value && !std::is_same<T, bool>::value, void>::type
+ReadParam(ros::NodeHandle& nh, const std::string& name, T* value)
+{
+    // 避免 int32_t/uint16_t 等别名触发模板推导错误。
+    int temp = static_cast<int>(*value);
+    if (nh.getParam(name, temp)) {
+        *value = static_cast<T>(temp);
+    }
+}
+
+void SetParam(ros::NodeHandle& nh, const std::string& name, const std::string& value)
 {
     nh.setParam(name, value);
+}
+
+void SetParam(ros::NodeHandle& nh, const std::string& name, bool value)
+{
+    nh.setParam(name, value);
+}
+
+void SetParam(ros::NodeHandle& nh, const std::string& name, double value)
+{
+    nh.setParam(name, value);
+}
+
+void SetParam(ros::NodeHandle& nh, const std::string& name, float value)
+{
+    nh.setParam(name, static_cast<double>(value));
+}
+
+template <typename T>
+typename std::enable_if<std::is_integral<T>::value && !std::is_same<T, bool>::value, void>::type
+SetParam(ros::NodeHandle& nh, const std::string& name, T value)
+{
+    nh.setParam(name, static_cast<int>(value));
 }
 
 template <typename T>
@@ -122,85 +187,62 @@ bool DefaultConfigFilePath(std::string* path, std::string* error)
 
 void ReadLxCameraParams(ros::NodeHandle& nh, common_msgs::config_lx_camera* params)
 {
-    nh.param("down_qr_camera_ip", params->down_qr_camera_ip, params->down_qr_camera_ip);
-    nh.param("down_qr_camera_param_exposure", params->down_qr_camera_param_exposure,
-             params->down_qr_camera_param_exposure);
-    nh.param("down_qr_camera_param_gain", params->down_qr_camera_param_gain, params->down_qr_camera_param_gain);
-    nh.param("down_qr_camera_param_led_brightness", params->down_qr_camera_param_led_brightness,
-             params->down_qr_camera_param_led_brightness);
+    ReadParam(nh, "down_qr_camera_ip", &params->down_qr_camera_ip);
+    ReadParam(nh, "down_qr_camera_param_exposure", &params->down_qr_camera_param_exposure);
+    ReadParam(nh, "down_qr_camera_param_gain", &params->down_qr_camera_param_gain);
+    ReadParam(nh, "down_qr_camera_param_led_brightness", &params->down_qr_camera_param_led_brightness);
 
-    nh.param("up_qr_camera_ip", params->up_qr_camera_ip, params->up_qr_camera_ip);
-    nh.param("up_qr_camera_param_exposure", params->up_qr_camera_param_exposure, params->up_qr_camera_param_exposure);
-    nh.param("up_qr_camera_param_gain", params->up_qr_camera_param_gain, params->up_qr_camera_param_gain);
-    nh.param("up_qr_camera_param_led_brightness", params->up_qr_camera_param_led_brightness,
-             params->up_qr_camera_param_led_brightness);
+    ReadParam(nh, "up_qr_camera_ip", &params->up_qr_camera_ip);
+    ReadParam(nh, "up_qr_camera_param_exposure", &params->up_qr_camera_param_exposure);
+    ReadParam(nh, "up_qr_camera_param_gain", &params->up_qr_camera_param_gain);
+    ReadParam(nh, "up_qr_camera_param_led_brightness", &params->up_qr_camera_param_led_brightness);
 
-    nh.param("down_qr_code_param_rows", params->down_qr_code_param_rows, params->down_qr_code_param_rows);
-    nh.param("down_qr_code_param_cols", params->down_qr_code_param_cols, params->down_qr_code_param_cols);
-    nh.param("down_qr_code_param_qr_size", params->down_qr_code_param_qr_size, params->down_qr_code_param_qr_size);
-    nh.param("down_qr_code_param_qr_interval", params->down_qr_code_param_qr_interval,
-             params->down_qr_code_param_qr_interval);
-    nh.param("down_qr_code_param_radius_big", params->down_qr_code_param_radius_big,
-             params->down_qr_code_param_radius_big);
-    nh.param("down_qr_code_param_radius_small", params->down_qr_code_param_radius_small,
-             params->down_qr_code_param_radius_small);
-    nh.param("down_qr_code_param_circle_dis", params->down_qr_code_param_circle_dis,
-             params->down_qr_code_param_circle_dis);
-    nh.param("down_qr_code_param_point_height", params->down_qr_code_param_point_height,
-             params->down_qr_code_param_point_height);
-    nh.param("down_qr_code_param_big_circle_width", params->down_qr_code_param_big_circle_width,
-             params->down_qr_code_param_big_circle_width);
-    nh.param("down_qr_code_param_qr_need", params->down_qr_code_param_qr_need, params->down_qr_code_param_qr_need);
-    nh.param("down_qr_code_param_dm_symbol", params->down_qr_code_param_dm_symbol,
-             params->down_qr_code_param_dm_symbol);
-    nh.param("down_qr_code_param_decode_timeout", params->down_qr_code_param_decode_timeout,
-             params->down_qr_code_param_decode_timeout);
-    nh.param("down_qr_code_param_big_circle_flag", params->down_qr_code_param_big_circle_flag,
-             params->down_qr_code_param_big_circle_flag);
-    nh.param("down_qr_code_param_small_circle_flag", params->down_qr_code_param_small_circle_flag,
-             params->down_qr_code_param_small_circle_flag);
-    nh.param("down_qr_code_param_encode_type", params->down_qr_code_param_encode_type,
-             params->down_qr_code_param_encode_type);
-    nh.param("down_qr_code_param_save_video", params->down_qr_code_param_save_video,
-             params->down_qr_code_param_save_video);
+    ReadParam(nh, "down_qr_code_param_rows", &params->down_qr_code_param_rows);
+    ReadParam(nh, "down_qr_code_param_cols", &params->down_qr_code_param_cols);
+    ReadParam(nh, "down_qr_code_param_qr_size", &params->down_qr_code_param_qr_size);
+    ReadParam(nh, "down_qr_code_param_qr_interval", &params->down_qr_code_param_qr_interval);
+    ReadParam(nh, "down_qr_code_param_radius_big", &params->down_qr_code_param_radius_big);
+    ReadParam(nh, "down_qr_code_param_radius_small", &params->down_qr_code_param_radius_small);
+    ReadParam(nh, "down_qr_code_param_circle_dis", &params->down_qr_code_param_circle_dis);
+    ReadParam(nh, "down_qr_code_param_point_height", &params->down_qr_code_param_point_height);
+    ReadParam(nh, "down_qr_code_param_big_circle_width", &params->down_qr_code_param_big_circle_width);
+    ReadParam(nh, "down_qr_code_param_qr_need", &params->down_qr_code_param_qr_need);
+    ReadParam(nh, "down_qr_code_param_dm_symbol", &params->down_qr_code_param_dm_symbol);
+    ReadParam(nh, "down_qr_code_param_decode_timeout", &params->down_qr_code_param_decode_timeout);
+    ReadParam(nh, "down_qr_code_param_big_circle_flag", &params->down_qr_code_param_big_circle_flag);
+    ReadParam(nh, "down_qr_code_param_small_circle_flag", &params->down_qr_code_param_small_circle_flag);
+    ReadParam(nh, "down_qr_code_param_encode_type", &params->down_qr_code_param_encode_type);
+    ReadParam(nh, "down_qr_code_param_save_video", &params->down_qr_code_param_save_video);
 
-    nh.param("up_qr_code_param_rows", params->up_qr_code_param_rows, params->up_qr_code_param_rows);
-    nh.param("up_qr_code_param_cols", params->up_qr_code_param_cols, params->up_qr_code_param_cols);
-    nh.param("up_qr_code_param_qr_size", params->up_qr_code_param_qr_size, params->up_qr_code_param_qr_size);
-    nh.param("up_qr_code_param_qr_interval", params->up_qr_code_param_qr_interval,
-             params->up_qr_code_param_qr_interval);
-    nh.param("up_qr_code_param_radius_big", params->up_qr_code_param_radius_big, params->up_qr_code_param_radius_big);
-    nh.param("up_qr_code_param_radius_small", params->up_qr_code_param_radius_small,
-             params->up_qr_code_param_radius_small);
-    nh.param("up_qr_code_param_circle_dis", params->up_qr_code_param_circle_dis, params->up_qr_code_param_circle_dis);
-    nh.param("up_qr_code_param_point_height", params->up_qr_code_param_point_height,
-             params->up_qr_code_param_point_height);
-    nh.param("up_qr_code_param_big_circle_width", params->up_qr_code_param_big_circle_width,
-             params->up_qr_code_param_big_circle_width);
-    nh.param("up_qr_code_param_qr_need", params->up_qr_code_param_qr_need, params->up_qr_code_param_qr_need);
-    nh.param("up_qr_code_param_dm_symbol", params->up_qr_code_param_dm_symbol, params->up_qr_code_param_dm_symbol);
-    nh.param("up_qr_code_param_decode_timeout", params->up_qr_code_param_decode_timeout,
-             params->up_qr_code_param_decode_timeout);
-    nh.param("up_qr_code_param_big_circle_flag", params->up_qr_code_param_big_circle_flag,
-             params->up_qr_code_param_big_circle_flag);
-    nh.param("up_qr_code_param_small_circle_flag", params->up_qr_code_param_small_circle_flag,
-             params->up_qr_code_param_small_circle_flag);
-    nh.param("up_qr_code_param_encode_type", params->up_qr_code_param_encode_type,
-             params->up_qr_code_param_encode_type);
-    nh.param("up_qr_code_param_save_video", params->up_qr_code_param_save_video, params->up_qr_code_param_save_video);
+    ReadParam(nh, "up_qr_code_param_rows", &params->up_qr_code_param_rows);
+    ReadParam(nh, "up_qr_code_param_cols", &params->up_qr_code_param_cols);
+    ReadParam(nh, "up_qr_code_param_qr_size", &params->up_qr_code_param_qr_size);
+    ReadParam(nh, "up_qr_code_param_qr_interval", &params->up_qr_code_param_qr_interval);
+    ReadParam(nh, "up_qr_code_param_radius_big", &params->up_qr_code_param_radius_big);
+    ReadParam(nh, "up_qr_code_param_radius_small", &params->up_qr_code_param_radius_small);
+    ReadParam(nh, "up_qr_code_param_circle_dis", &params->up_qr_code_param_circle_dis);
+    ReadParam(nh, "up_qr_code_param_point_height", &params->up_qr_code_param_point_height);
+    ReadParam(nh, "up_qr_code_param_big_circle_width", &params->up_qr_code_param_big_circle_width);
+    ReadParam(nh, "up_qr_code_param_qr_need", &params->up_qr_code_param_qr_need);
+    ReadParam(nh, "up_qr_code_param_dm_symbol", &params->up_qr_code_param_dm_symbol);
+    ReadParam(nh, "up_qr_code_param_decode_timeout", &params->up_qr_code_param_decode_timeout);
+    ReadParam(nh, "up_qr_code_param_big_circle_flag", &params->up_qr_code_param_big_circle_flag);
+    ReadParam(nh, "up_qr_code_param_small_circle_flag", &params->up_qr_code_param_small_circle_flag);
+    ReadParam(nh, "up_qr_code_param_encode_type", &params->up_qr_code_param_encode_type);
+    ReadParam(nh, "up_qr_code_param_save_video", &params->up_qr_code_param_save_video);
 }
 
 void ReadRuntimeOptions(ros::NodeHandle& nh, RuntimeOptions* options)
 {
-    nh.param("qr_type", options->qr_type, options->qr_type);
-    nh.param("camera_id", options->camera_id, options->camera_id);
-    nh.param("placeholder_camera_id", options->placeholder_camera_id, options->placeholder_camera_id);
-    nh.param("publish_placeholder_up", options->publish_placeholder_up, options->publish_placeholder_up);
-    nh.param("publish_rate_hz", options->publish_rate_hz, options->publish_rate_hz);
-    nh.param("stale_timeout_sec", options->stale_timeout_sec, options->stale_timeout_sec);
-    nh.param("auto_reconnect", options->auto_reconnect, options->auto_reconnect);
-    nh.param("reconnect_interval_sec", options->reconnect_interval_sec, options->reconnect_interval_sec);
-    nh.param("update_service_name", options->update_service_name, options->update_service_name);
+    ReadParam(nh, "qr_type", &options->qr_type);
+    ReadParam(nh, "camera_id", &options->camera_id);
+    ReadParam(nh, "placeholder_camera_id", &options->placeholder_camera_id);
+    ReadParam(nh, "publish_placeholder_up", &options->publish_placeholder_up);
+    ReadParam(nh, "publish_rate_hz", &options->publish_rate_hz);
+    ReadParam(nh, "stale_timeout_sec", &options->stale_timeout_sec);
+    ReadParam(nh, "auto_reconnect", &options->auto_reconnect);
+    ReadParam(nh, "reconnect_interval_sec", &options->reconnect_interval_sec);
+    ReadParam(nh, "update_service_name", &options->update_service_name);
 }
 
 }  // namespace
