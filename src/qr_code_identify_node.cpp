@@ -26,7 +26,7 @@ QrCodeIdentifyNode::QrCodeIdentifyNode(const ros::NodeHandle& nh, const ros::Nod
     reconnect_timer_ = nh_.createTimer(ros::Duration(config_.runtime.reconnect_interval_sec),
                                        &QrCodeIdentifyNode::ReconnectTimerCallback, this);
 
-    status_timer_ = nh_.createTimer(ros::Duration(1.0), &QrCodeIdentifyNode::StatusTimerCallback, this);
+    status_timer_ = nh_.createTimer(ros::Duration(2.0), &QrCodeIdentifyNode::StatusTimerCallback, this);
 }
 
 bool QrCodeIdentifyNode::Start()
