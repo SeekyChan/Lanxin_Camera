@@ -113,37 +113,40 @@ bool QrCodeIdentifyNode::UpdateParamsCallback(common_msgs::SetLxCameraParams::Re
 {
     std::string error;
 
-  if (!request.flag_update) {
-    response.success = true;
-    response.message = "read current qr_code_identify params success";
+    if (!request.flag_update) {
+        response.success = true;
+        response.message = "read current qr_code_identify params success";
         FillCurrentParams(&response);
-    return true;
-  }
+        return true;
+    }
 
-  // 更新顺序不能随意调整：先持久化，再写参数服务器，最后重启相机。
-  // 这样 yaml 写失败时不会污染当前运行参数。
-  if (!ValidateLxCameraParams(request.new_lx_param, &error)) {
+    common_msgs::config_lx_camera requested_params = request.new_lx_param;
+    NormalizeLxCameraBooleanFlags(&requested_params);
+
+    // 更新顺序不能随意调整：先持久化，再写参数服务器，最后重启相机。
+    // 这样 yaml 写失败时不会污染当前运行参数。
+    if (!ValidateLxCameraParams(requested_params, &error)) {
         response.success = false;
         response.message = error;
         FillCurrentParams(&response);
         return true;
     }
 
-    if (!WriteLxCameraParamsToDefaultFile(request.new_lx_param, &error)) {
+    if (!WriteLxCameraParamsToDefaultFile(requested_params, &error)) {
         response.success = false;
         response.message = "write config_cameras.yaml failed: " + error;
         FillCurrentParams(&response);
         return true;
     }
 
-    if (!WriteLxCameraParamsToServer(private_nh_, request.new_lx_param, &error)) {
+    if (!WriteLxCameraParamsToServer(private_nh_, requested_params, &error)) {
         response.success = false;
         response.message = "write params to server failed: " + error;
         FillCurrentParams(&response);
         return true;
     }
 
-    config_.lx = request.new_lx_param;
+    config_.lx = requested_params;
 
     if (!RestartCamera("params updated by service", &error)) {
         response.success = false;

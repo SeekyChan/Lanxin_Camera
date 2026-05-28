@@ -30,6 +30,8 @@ struct QrCameraConfig {
 common_msgs::config_lx_camera DefaultLxCameraParams();
 RuntimeOptions DefaultRuntimeOptions();
 
+void NormalizeLxCameraBooleanFlags(common_msgs::config_lx_camera* params);
+
 bool ValidateLxCameraParams(const common_msgs::config_lx_camera& params, std::string* error);
 
 bool ReadCameraConfig(ros::NodeHandle& private_nh, QrCameraConfig* config, std::string* error);

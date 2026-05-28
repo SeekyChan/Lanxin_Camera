@@ -1,5 +1,6 @@
 #include "qr_camera_config.h"
 
+#include <cctype>
 #include <cstdio>
 #include <fstream>
 #include <iomanip>
@@ -28,6 +29,20 @@ bool CheckRange(const std::string& name, const T& value, const T& min_value, con
     return false;
 }
 
+bool CheckNotBlank(const std::string& name, const std::string& value, std::string* error)
+{
+    for (std::string::const_iterator it = value.begin(); it != value.end(); ++it) {
+        if (!std::isspace(static_cast<unsigned char>(*it))) {
+            return true;
+        }
+    }
+
+    if (error) {
+        *error = "param '" + name + "' must not be empty";
+    }
+    return false;
+}
+
 bool CheckEncodeType(const std::string& name, int value, std::string* error)
 {
     if (value == 1 || value == 5) {
@@ -40,6 +55,20 @@ bool CheckEncodeType(const std::string& name, int value, std::string* error)
         *error = oss.str();
     }
     return false;
+}
+
+template <typename T>
+bool IsBoolFlagTrue(T value)
+{
+    return static_cast<int>(value) == 1;
+}
+
+template <typename T>
+void NormalizeBoolFlag(T* value)
+{
+    if (value) {
+        *value = IsBoolFlagTrue(*value);
+    }
 }
 
 bool ValidateOneCameraParams(const common_msgs::config_lx_camera& params, const std::string& prefix, bool up,
@@ -166,6 +195,12 @@ void WriteYamlValue(std::ostream& out, const std::string& name, bool value)
 void WriteYamlValue(std::ostream& out, const std::string& name, const std::string& value)
 {
     out << name << ": " << value << "\n";
+}
+
+template <typename T>
+void WriteYamlBoolFlag(std::ostream& out, const std::string& name, T value)
+{
+    out << name << ": " << (IsBoolFlagTrue(value) ? "true" : "false") << "\n";
 }
 
 bool DefaultConfigFilePath(std::string* path, std::string* error)
@@ -313,9 +348,26 @@ RuntimeOptions DefaultRuntimeOptions()
     return options;
 }
 
+void NormalizeLxCameraBooleanFlags(common_msgs::config_lx_camera* params)
+{
+    if (!params) {
+        return;
+    }
+
+    // ROS bool 字段在 C++ 中可能是 uint8_t；这里只认 1/true 为 true，其它值统一压成 false。
+    NormalizeBoolFlag(&params->down_qr_code_param_big_circle_flag);
+    NormalizeBoolFlag(&params->down_qr_code_param_small_circle_flag);
+    NormalizeBoolFlag(&params->down_qr_code_param_save_video);
+    NormalizeBoolFlag(&params->up_qr_code_param_big_circle_flag);
+    NormalizeBoolFlag(&params->up_qr_code_param_small_circle_flag);
+    NormalizeBoolFlag(&params->up_qr_code_param_save_video);
+}
+
 bool ValidateLxCameraParams(const common_msgs::config_lx_camera& params, std::string* error)
 {
-    return ValidateOneCameraParams(params, "down", false, error) && ValidateOneCameraParams(params, "up", true, error);
+    return CheckNotBlank("down_qr_camera_ip", params.down_qr_camera_ip, error) &&
+           CheckNotBlank("up_qr_camera_ip", params.up_qr_camera_ip, error) &&
+           ValidateOneCameraParams(params, "down", false, error) && ValidateOneCameraParams(params, "up", true, error);
 }
 
 bool ReadCameraConfig(ros::NodeHandle& private_nh, QrCameraConfig* config, std::string* error)
@@ -330,6 +382,7 @@ bool ReadCameraConfig(ros::NodeHandle& private_nh, QrCameraConfig* config, std::
     config->lx = DefaultLxCameraParams();
     config->runtime = DefaultRuntimeOptions();
     ReadLxCameraParams(private_nh, &config->lx);
+    NormalizeLxCameraBooleanFlags(&config->lx);
     ReadRuntimeOptions(private_nh, &config->runtime);
 
     if (!ValidateLxCameraParams(config->lx, error)) {
@@ -350,60 +403,66 @@ bool ReadCameraConfig(ros::NodeHandle& private_nh, QrCameraConfig* config, std::
 bool WriteLxCameraParamsToServer(ros::NodeHandle& private_nh, const common_msgs::config_lx_camera& params,
                                  std::string* error)
 {
-    if (!ValidateLxCameraParams(params, error)) {
+    common_msgs::config_lx_camera normalized = params;
+    NormalizeLxCameraBooleanFlags(&normalized);
+
+    if (!ValidateLxCameraParams(normalized, error)) {
         return false;
     }
 
-    SetParam(private_nh, "down_qr_camera_ip", params.down_qr_camera_ip);
-    SetParam(private_nh, "down_qr_camera_param_exposure", params.down_qr_camera_param_exposure);
-    SetParam(private_nh, "down_qr_camera_param_gain", params.down_qr_camera_param_gain);
-    SetParam(private_nh, "down_qr_camera_param_led_brightness", params.down_qr_camera_param_led_brightness);
+    SetParam(private_nh, "down_qr_camera_ip", normalized.down_qr_camera_ip);
+    SetParam(private_nh, "down_qr_camera_param_exposure", normalized.down_qr_camera_param_exposure);
+    SetParam(private_nh, "down_qr_camera_param_gain", normalized.down_qr_camera_param_gain);
+    SetParam(private_nh, "down_qr_camera_param_led_brightness", normalized.down_qr_camera_param_led_brightness);
 
-    SetParam(private_nh, "up_qr_camera_ip", params.up_qr_camera_ip);
-    SetParam(private_nh, "up_qr_camera_param_exposure", params.up_qr_camera_param_exposure);
-    SetParam(private_nh, "up_qr_camera_param_gain", params.up_qr_camera_param_gain);
-    SetParam(private_nh, "up_qr_camera_param_led_brightness", params.up_qr_camera_param_led_brightness);
+    SetParam(private_nh, "up_qr_camera_ip", normalized.up_qr_camera_ip);
+    SetParam(private_nh, "up_qr_camera_param_exposure", normalized.up_qr_camera_param_exposure);
+    SetParam(private_nh, "up_qr_camera_param_gain", normalized.up_qr_camera_param_gain);
+    SetParam(private_nh, "up_qr_camera_param_led_brightness", normalized.up_qr_camera_param_led_brightness);
 
-    SetParam(private_nh, "down_qr_code_param_rows", params.down_qr_code_param_rows);
-    SetParam(private_nh, "down_qr_code_param_cols", params.down_qr_code_param_cols);
-    SetParam(private_nh, "down_qr_code_param_qr_size", params.down_qr_code_param_qr_size);
-    SetParam(private_nh, "down_qr_code_param_qr_interval", params.down_qr_code_param_qr_interval);
-    SetParam(private_nh, "down_qr_code_param_radius_big", params.down_qr_code_param_radius_big);
-    SetParam(private_nh, "down_qr_code_param_radius_small", params.down_qr_code_param_radius_small);
-    SetParam(private_nh, "down_qr_code_param_circle_dis", params.down_qr_code_param_circle_dis);
-    SetParam(private_nh, "down_qr_code_param_point_height", params.down_qr_code_param_point_height);
-    SetParam(private_nh, "down_qr_code_param_big_circle_width", params.down_qr_code_param_big_circle_width);
-    SetParam(private_nh, "down_qr_code_param_qr_need", params.down_qr_code_param_qr_need);
-    SetParam(private_nh, "down_qr_code_param_dm_symbol", params.down_qr_code_param_dm_symbol);
-    SetParam(private_nh, "down_qr_code_param_decode_timeout", params.down_qr_code_param_decode_timeout);
-    SetParam(private_nh, "down_qr_code_param_big_circle_flag", params.down_qr_code_param_big_circle_flag);
-    SetParam(private_nh, "down_qr_code_param_small_circle_flag", params.down_qr_code_param_small_circle_flag);
-    SetParam(private_nh, "down_qr_code_param_encode_type", params.down_qr_code_param_encode_type);
-    SetParam(private_nh, "down_qr_code_param_save_video", params.down_qr_code_param_save_video);
+    SetParam(private_nh, "down_qr_code_param_rows", normalized.down_qr_code_param_rows);
+    SetParam(private_nh, "down_qr_code_param_cols", normalized.down_qr_code_param_cols);
+    SetParam(private_nh, "down_qr_code_param_qr_size", normalized.down_qr_code_param_qr_size);
+    SetParam(private_nh, "down_qr_code_param_qr_interval", normalized.down_qr_code_param_qr_interval);
+    SetParam(private_nh, "down_qr_code_param_radius_big", normalized.down_qr_code_param_radius_big);
+    SetParam(private_nh, "down_qr_code_param_radius_small", normalized.down_qr_code_param_radius_small);
+    SetParam(private_nh, "down_qr_code_param_circle_dis", normalized.down_qr_code_param_circle_dis);
+    SetParam(private_nh, "down_qr_code_param_point_height", normalized.down_qr_code_param_point_height);
+    SetParam(private_nh, "down_qr_code_param_big_circle_width", normalized.down_qr_code_param_big_circle_width);
+    SetParam(private_nh, "down_qr_code_param_qr_need", normalized.down_qr_code_param_qr_need);
+    SetParam(private_nh, "down_qr_code_param_dm_symbol", normalized.down_qr_code_param_dm_symbol);
+    SetParam(private_nh, "down_qr_code_param_decode_timeout", normalized.down_qr_code_param_decode_timeout);
+    SetParam(private_nh, "down_qr_code_param_big_circle_flag", normalized.down_qr_code_param_big_circle_flag);
+    SetParam(private_nh, "down_qr_code_param_small_circle_flag", normalized.down_qr_code_param_small_circle_flag);
+    SetParam(private_nh, "down_qr_code_param_encode_type", normalized.down_qr_code_param_encode_type);
+    SetParam(private_nh, "down_qr_code_param_save_video", normalized.down_qr_code_param_save_video);
 
-    SetParam(private_nh, "up_qr_code_param_rows", params.up_qr_code_param_rows);
-    SetParam(private_nh, "up_qr_code_param_cols", params.up_qr_code_param_cols);
-    SetParam(private_nh, "up_qr_code_param_qr_size", params.up_qr_code_param_qr_size);
-    SetParam(private_nh, "up_qr_code_param_qr_interval", params.up_qr_code_param_qr_interval);
-    SetParam(private_nh, "up_qr_code_param_radius_big", params.up_qr_code_param_radius_big);
-    SetParam(private_nh, "up_qr_code_param_radius_small", params.up_qr_code_param_radius_small);
-    SetParam(private_nh, "up_qr_code_param_circle_dis", params.up_qr_code_param_circle_dis);
-    SetParam(private_nh, "up_qr_code_param_point_height", params.up_qr_code_param_point_height);
-    SetParam(private_nh, "up_qr_code_param_big_circle_width", params.up_qr_code_param_big_circle_width);
-    SetParam(private_nh, "up_qr_code_param_qr_need", params.up_qr_code_param_qr_need);
-    SetParam(private_nh, "up_qr_code_param_dm_symbol", params.up_qr_code_param_dm_symbol);
-    SetParam(private_nh, "up_qr_code_param_decode_timeout", params.up_qr_code_param_decode_timeout);
-    SetParam(private_nh, "up_qr_code_param_big_circle_flag", params.up_qr_code_param_big_circle_flag);
-    SetParam(private_nh, "up_qr_code_param_small_circle_flag", params.up_qr_code_param_small_circle_flag);
-    SetParam(private_nh, "up_qr_code_param_encode_type", params.up_qr_code_param_encode_type);
-    SetParam(private_nh, "up_qr_code_param_save_video", params.up_qr_code_param_save_video);
+    SetParam(private_nh, "up_qr_code_param_rows", normalized.up_qr_code_param_rows);
+    SetParam(private_nh, "up_qr_code_param_cols", normalized.up_qr_code_param_cols);
+    SetParam(private_nh, "up_qr_code_param_qr_size", normalized.up_qr_code_param_qr_size);
+    SetParam(private_nh, "up_qr_code_param_qr_interval", normalized.up_qr_code_param_qr_interval);
+    SetParam(private_nh, "up_qr_code_param_radius_big", normalized.up_qr_code_param_radius_big);
+    SetParam(private_nh, "up_qr_code_param_radius_small", normalized.up_qr_code_param_radius_small);
+    SetParam(private_nh, "up_qr_code_param_circle_dis", normalized.up_qr_code_param_circle_dis);
+    SetParam(private_nh, "up_qr_code_param_point_height", normalized.up_qr_code_param_point_height);
+    SetParam(private_nh, "up_qr_code_param_big_circle_width", normalized.up_qr_code_param_big_circle_width);
+    SetParam(private_nh, "up_qr_code_param_qr_need", normalized.up_qr_code_param_qr_need);
+    SetParam(private_nh, "up_qr_code_param_dm_symbol", normalized.up_qr_code_param_dm_symbol);
+    SetParam(private_nh, "up_qr_code_param_decode_timeout", normalized.up_qr_code_param_decode_timeout);
+    SetParam(private_nh, "up_qr_code_param_big_circle_flag", normalized.up_qr_code_param_big_circle_flag);
+    SetParam(private_nh, "up_qr_code_param_small_circle_flag", normalized.up_qr_code_param_small_circle_flag);
+    SetParam(private_nh, "up_qr_code_param_encode_type", normalized.up_qr_code_param_encode_type);
+    SetParam(private_nh, "up_qr_code_param_save_video", normalized.up_qr_code_param_save_video);
 
     return true;
 }
 
 bool WriteLxCameraParamsToDefaultFile(const common_msgs::config_lx_camera& params, std::string* error)
 {
-    if (!ValidateLxCameraParams(params, error)) {
+    common_msgs::config_lx_camera normalized = params;
+    NormalizeLxCameraBooleanFlags(&normalized);
+
+    if (!ValidateLxCameraParams(normalized, error)) {
         return false;
     }
 
@@ -425,53 +484,53 @@ bool WriteLxCameraParamsToDefaultFile(const common_msgs::config_lx_camera& param
 
         out << std::setprecision(10);
         out << "# camera params\n";
-        WriteYamlValue(out, "down_qr_camera_ip", params.down_qr_camera_ip);
-        WriteYamlValue(out, "down_qr_camera_param_exposure", params.down_qr_camera_param_exposure);
-        WriteYamlValue(out, "down_qr_camera_param_gain", params.down_qr_camera_param_gain);
-        WriteYamlValue(out, "down_qr_camera_param_led_brightness", params.down_qr_camera_param_led_brightness);
+        WriteYamlValue(out, "down_qr_camera_ip", normalized.down_qr_camera_ip);
+        WriteYamlValue(out, "down_qr_camera_param_exposure", normalized.down_qr_camera_param_exposure);
+        WriteYamlValue(out, "down_qr_camera_param_gain", normalized.down_qr_camera_param_gain);
+        WriteYamlValue(out, "down_qr_camera_param_led_brightness", normalized.down_qr_camera_param_led_brightness);
         out << "\n";
 
-        WriteYamlValue(out, "up_qr_camera_ip", params.up_qr_camera_ip);
-        WriteYamlValue(out, "up_qr_camera_param_exposure", params.up_qr_camera_param_exposure);
-        WriteYamlValue(out, "up_qr_camera_param_gain", params.up_qr_camera_param_gain);
-        WriteYamlValue(out, "up_qr_camera_param_led_brightness", params.up_qr_camera_param_led_brightness);
+        WriteYamlValue(out, "up_qr_camera_ip", normalized.up_qr_camera_ip);
+        WriteYamlValue(out, "up_qr_camera_param_exposure", normalized.up_qr_camera_param_exposure);
+        WriteYamlValue(out, "up_qr_camera_param_gain", normalized.up_qr_camera_param_gain);
+        WriteYamlValue(out, "up_qr_camera_param_led_brightness", normalized.up_qr_camera_param_led_brightness);
         out << "\n";
 
         out << "# QR detection params\n";
-        WriteYamlValue(out, "down_qr_code_param_rows", params.down_qr_code_param_rows);
-        WriteYamlValue(out, "down_qr_code_param_cols", params.down_qr_code_param_cols);
-        WriteYamlValue(out, "down_qr_code_param_qr_size", params.down_qr_code_param_qr_size);
-        WriteYamlValue(out, "down_qr_code_param_qr_interval", params.down_qr_code_param_qr_interval);
-        WriteYamlValue(out, "down_qr_code_param_radius_big", params.down_qr_code_param_radius_big);
-        WriteYamlValue(out, "down_qr_code_param_radius_small", params.down_qr_code_param_radius_small);
-        WriteYamlValue(out, "down_qr_code_param_circle_dis", params.down_qr_code_param_circle_dis);
-        WriteYamlValue(out, "down_qr_code_param_point_height", params.down_qr_code_param_point_height);
-        WriteYamlValue(out, "down_qr_code_param_big_circle_width", params.down_qr_code_param_big_circle_width);
-        WriteYamlValue(out, "down_qr_code_param_qr_need", params.down_qr_code_param_qr_need);
-        WriteYamlValue(out, "down_qr_code_param_dm_symbol", params.down_qr_code_param_dm_symbol);
-        WriteYamlValue(out, "down_qr_code_param_decode_timeout", params.down_qr_code_param_decode_timeout);
-        WriteYamlValue(out, "down_qr_code_param_big_circle_flag", params.down_qr_code_param_big_circle_flag);
-        WriteYamlValue(out, "down_qr_code_param_small_circle_flag", params.down_qr_code_param_small_circle_flag);
-        WriteYamlValue(out, "down_qr_code_param_encode_type", params.down_qr_code_param_encode_type);
-        WriteYamlValue(out, "down_qr_code_param_save_video", params.down_qr_code_param_save_video);
+        WriteYamlValue(out, "down_qr_code_param_rows", normalized.down_qr_code_param_rows);
+        WriteYamlValue(out, "down_qr_code_param_cols", normalized.down_qr_code_param_cols);
+        WriteYamlValue(out, "down_qr_code_param_qr_size", normalized.down_qr_code_param_qr_size);
+        WriteYamlValue(out, "down_qr_code_param_qr_interval", normalized.down_qr_code_param_qr_interval);
+        WriteYamlValue(out, "down_qr_code_param_radius_big", normalized.down_qr_code_param_radius_big);
+        WriteYamlValue(out, "down_qr_code_param_radius_small", normalized.down_qr_code_param_radius_small);
+        WriteYamlValue(out, "down_qr_code_param_circle_dis", normalized.down_qr_code_param_circle_dis);
+        WriteYamlValue(out, "down_qr_code_param_point_height", normalized.down_qr_code_param_point_height);
+        WriteYamlValue(out, "down_qr_code_param_big_circle_width", normalized.down_qr_code_param_big_circle_width);
+        WriteYamlValue(out, "down_qr_code_param_qr_need", normalized.down_qr_code_param_qr_need);
+        WriteYamlValue(out, "down_qr_code_param_dm_symbol", normalized.down_qr_code_param_dm_symbol);
+        WriteYamlValue(out, "down_qr_code_param_decode_timeout", normalized.down_qr_code_param_decode_timeout);
+        WriteYamlBoolFlag(out, "down_qr_code_param_big_circle_flag", normalized.down_qr_code_param_big_circle_flag);
+        WriteYamlBoolFlag(out, "down_qr_code_param_small_circle_flag", normalized.down_qr_code_param_small_circle_flag);
+        WriteYamlValue(out, "down_qr_code_param_encode_type", normalized.down_qr_code_param_encode_type);
+        WriteYamlBoolFlag(out, "down_qr_code_param_save_video", normalized.down_qr_code_param_save_video);
         out << "\n";
 
-        WriteYamlValue(out, "up_qr_code_param_rows", params.up_qr_code_param_rows);
-        WriteYamlValue(out, "up_qr_code_param_cols", params.up_qr_code_param_cols);
-        WriteYamlValue(out, "up_qr_code_param_qr_size", params.up_qr_code_param_qr_size);
-        WriteYamlValue(out, "up_qr_code_param_qr_interval", params.up_qr_code_param_qr_interval);
-        WriteYamlValue(out, "up_qr_code_param_radius_big", params.up_qr_code_param_radius_big);
-        WriteYamlValue(out, "up_qr_code_param_radius_small", params.up_qr_code_param_radius_small);
-        WriteYamlValue(out, "up_qr_code_param_circle_dis", params.up_qr_code_param_circle_dis);
-        WriteYamlValue(out, "up_qr_code_param_point_height", params.up_qr_code_param_point_height);
-        WriteYamlValue(out, "up_qr_code_param_big_circle_width", params.up_qr_code_param_big_circle_width);
-        WriteYamlValue(out, "up_qr_code_param_qr_need", params.up_qr_code_param_qr_need);
-        WriteYamlValue(out, "up_qr_code_param_dm_symbol", params.up_qr_code_param_dm_symbol);
-        WriteYamlValue(out, "up_qr_code_param_decode_timeout", params.up_qr_code_param_decode_timeout);
-        WriteYamlValue(out, "up_qr_code_param_big_circle_flag", params.up_qr_code_param_big_circle_flag);
-        WriteYamlValue(out, "up_qr_code_param_small_circle_flag", params.up_qr_code_param_small_circle_flag);
-        WriteYamlValue(out, "up_qr_code_param_encode_type", params.up_qr_code_param_encode_type);
-        WriteYamlValue(out, "up_qr_code_param_save_video", params.up_qr_code_param_save_video);
+        WriteYamlValue(out, "up_qr_code_param_rows", normalized.up_qr_code_param_rows);
+        WriteYamlValue(out, "up_qr_code_param_cols", normalized.up_qr_code_param_cols);
+        WriteYamlValue(out, "up_qr_code_param_qr_size", normalized.up_qr_code_param_qr_size);
+        WriteYamlValue(out, "up_qr_code_param_qr_interval", normalized.up_qr_code_param_qr_interval);
+        WriteYamlValue(out, "up_qr_code_param_radius_big", normalized.up_qr_code_param_radius_big);
+        WriteYamlValue(out, "up_qr_code_param_radius_small", normalized.up_qr_code_param_radius_small);
+        WriteYamlValue(out, "up_qr_code_param_circle_dis", normalized.up_qr_code_param_circle_dis);
+        WriteYamlValue(out, "up_qr_code_param_point_height", normalized.up_qr_code_param_point_height);
+        WriteYamlValue(out, "up_qr_code_param_big_circle_width", normalized.up_qr_code_param_big_circle_width);
+        WriteYamlValue(out, "up_qr_code_param_qr_need", normalized.up_qr_code_param_qr_need);
+        WriteYamlValue(out, "up_qr_code_param_dm_symbol", normalized.up_qr_code_param_dm_symbol);
+        WriteYamlValue(out, "up_qr_code_param_decode_timeout", normalized.up_qr_code_param_decode_timeout);
+        WriteYamlBoolFlag(out, "up_qr_code_param_big_circle_flag", normalized.up_qr_code_param_big_circle_flag);
+        WriteYamlBoolFlag(out, "up_qr_code_param_small_circle_flag", normalized.up_qr_code_param_small_circle_flag);
+        WriteYamlValue(out, "up_qr_code_param_encode_type", normalized.up_qr_code_param_encode_type);
+        WriteYamlBoolFlag(out, "up_qr_code_param_save_video", normalized.up_qr_code_param_save_video);
 
         out.flush();
         if (!out.good()) {
